@@ -10179,13 +10179,13 @@ static int move_specific_task(struct lb_env *env, struct task_struct *pm)
 	struct task_struct *p, *n;
 
 	list_for_each_entry_safe(p, n, &env->src_rq->cfs_tasks, se.group_node) {
-	if (throttled_lb_pair(task_group(p), env->src_rq->cpu,
-				env->dst_cpu))
+	if (throttled_lb_pair(task_group(p), env->src_rq->cpu, env->dst_cpu)){
 		continue;
 
 		if (!hmp_can_migrate_task(p, env))
 			continue;
 		/* Check if we found the right task */
+		
 		if (p != pm)
 			continue;
 
@@ -10197,6 +10197,7 @@ static int move_specific_task(struct lb_env *env, struct task_struct *pm)
 		 */
 		schedstat_inc(env->sd, lb_gained[env->idle]);
 		return 1;
+		}
 	}
 	return 0;
 }

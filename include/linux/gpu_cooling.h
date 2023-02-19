@@ -31,8 +31,7 @@
 
 #define GPU_TABLE_END     ~1
 
-typedef int (*get_static_t)(cpumask_t *cpumask, int interval,
-			    unsigned long voltage, u32 *power);
+typedef int (*get_static_t)(cpumask_t *cpumask, int interval, unsigned long voltage, u32 *power);
 
 #ifdef CONFIG_GPU_THERMAL
 /**
