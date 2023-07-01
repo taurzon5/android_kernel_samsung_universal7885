@@ -34,8 +34,6 @@ struct sec_ttf_data {
 
 	unsigned int ttf_hv_12v_charge_current;
 	unsigned int ttf_hv_charge_current;
-	unsigned int ttf_pd_charge_current;
-	unsigned int ttf_rp3_charge_current;
 	unsigned int ttf_hv_12v_wireless_charge_current;
 	unsigned int ttf_hv_wireless_charge_current;
 	unsigned int ttf_wireless_charge_current;

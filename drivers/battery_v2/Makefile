@@ -1,3 +1,5 @@
+subdir-ccflags-y := $(call cc-disable-warning, enum-conversion)
+
 obj-$(CONFIG_BATTERY_SAMSUNG)	+= sec_battery.o
 obj-$(CONFIG_OF)		+= sec_adc.o
 obj-$(CONFIG_MULTI_CHARGING)	+= sec_multi_charger.o

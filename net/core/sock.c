@@ -134,7 +134,6 @@
 #include <linux/sock_diag.h>
 
 #include <linux/filter.h>
-#include <net/sock_reuseport.h>
 
 #include <trace/events/sock.h>
 
@@ -149,14 +148,13 @@
 
 #include <net/busy_poll.h>
 
-
-#if defined(CONFIG_KNOX_NCM)
 /* START_OF_KNOX_NPA */
+#ifdef CONFIG_KNOX_NCM
 #include <linux/sched.h>
 #include <linux/pid.h>
 #include <net/ncm.h>
-/* END_OF_KNOX_NPA */
 #endif
+/* END_OF_KNOX_NPA */
 
 static DEFINE_MUTEX(proto_list_mutex);
 static LIST_HEAD(proto_list);
@@ -506,12 +504,11 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(sock_queue_rcv_skb);
 
-int __sk_receive_skb(struct sock *sk, struct sk_buff *skb,
-		     const int nested, unsigned int trim_cap)
+int sk_receive_skb(struct sock *sk, struct sk_buff *skb, const int nested)
 {
 	int rc = NET_RX_SUCCESS;
 
-	if (sk_filter_trim_cap(sk, skb, trim_cap))
+	if (sk_filter(sk, skb))
 		goto discard_and_relse;
 
 	skb->dev = NULL;
@@ -547,7 +544,7 @@ discard_and_relse:
 	kfree_skb(skb);
 	goto out;
 }
-EXPORT_SYMBOL(__sk_receive_skb);
+EXPORT_SYMBOL(sk_receive_skb);
 
 struct dst_entry *__sk_dst_check(struct sock *sk, u32 cookie)
 {
@@ -676,8 +673,8 @@ out:
 	return ret;
 }
 
-#if defined(CONFIG_KNOX_NCM)
 /* START_OF_KNOX_NPA */
+#ifdef CONFIG_KNOX_NCM
 /** The function sets the domain name associated with the socket. **/
 static int sock_set_domain_name(struct sock *sk, char __user *optval,
                 int optlen)
@@ -689,15 +686,15 @@ static int sock_set_domain_name(struct sock *sk, char __user *optval,
     if (optlen < 0)
         goto out;
 
-    if (optlen > DOMAIN_NAME_LEN_NAP - 1)
-	optlen = DOMAIN_NAME_LEN_NAP - 1;
+	if (optlen > DOMAIN_NAME_LEN_NAP - 1)
+		optlen = DOMAIN_NAME_LEN_NAP - 1;
 
     memset(domain, 0, sizeof(domain));
 
     ret = -EFAULT;
     if (copy_from_user(domain, optval, optlen))
         goto out;
-    memcpy(sk->domain_name,domain, sizeof(sk->domain_name)-1);
+        memcpy(sk->domain_name,domain, sizeof(sk->domain_name)-1);
     ret = 0;
 
 out:
@@ -764,9 +761,8 @@ static int sock_set_dns_pid(struct sock *sk, char __user *optval, int optlen)
 out:
 	return ret;
 }
-
-/* END_OF_KNOX_NPA */
 #endif
+/* END_OF_KNOX_NPA */
 
 static inline void sock_valbool_flag(struct sock *sk, int bit, int valbool)
 {
@@ -816,16 +812,16 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 	if (optname == SO_BINDTODEVICE)
 		return sock_setbindtodevice(sk, optval, optlen);
 
-#if defined(CONFIG_KNOX_NCM)
     /* START_OF_KNOX_NPA */
-	if (optname == SO_SET_DOMAIN_NAME)
-		return sock_set_domain_name(sk, optval, optlen);
-	if (optname == SO_SET_DNS_UID)
-		return sock_set_dns_uid(sk, optval, optlen);
+#ifdef CONFIG_KNOX_NCM
+    if (optname == SO_SET_DOMAIN_NAME)
+        return sock_set_domain_name(sk, optval, optlen);
+    if (optname == SO_SET_DNS_UID)
+	return sock_set_dns_uid(sk, optval, optlen);
 	if (optname == SO_SET_DNS_PID)
 		return sock_set_dns_pid(sk, optval, optlen);
-    /* END_OF_KNOX_NPA */
 #endif
+    /* END_OF_KNOX_NPA */
 
 	if (optlen < sizeof(int))
 		return -EINVAL;
@@ -1059,32 +1055,6 @@ set_rcvbuf:
 		}
 		break;
 
-	case SO_ATTACH_REUSEPORT_CBPF:
-		ret = -EINVAL;
-		if (optlen == sizeof(struct sock_fprog)) {
-			struct sock_fprog fprog;
-
-			ret = -EFAULT;
-			if (copy_from_user(&fprog, optval, sizeof(fprog)))
-				break;
-
-			ret = sk_reuseport_attach_filter(&fprog, sk);
-		}
-		break;
-
-	case SO_ATTACH_REUSEPORT_EBPF:
-		ret = -EINVAL;
-		if (optlen == sizeof(u32)) {
-			u32 ufd;
-
-			ret = -EFAULT;
-			if (copy_from_user(&ufd, optval, sizeof(ufd)))
-				break;
-
-			ret = sk_reuseport_attach_bpf(ufd, sk);
-		}
-		break;
-
 	case SO_DETACH_FILTER:
 		ret = sk_detach_filter(sk);
 		break;
@@ -1165,6 +1135,7 @@ set_rcvbuf:
 }
 EXPORT_SYMBOL(sock_setsockopt);
 
+
 static void cred_to_ucred(struct pid *pid, const struct cred *cred,
 			  struct ucred *ucred)
 {
@@ -1185,7 +1156,6 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 
 	union {
 		int val;
-		u64 val64;
 		struct linger ling;
 		struct timeval tm;
 	} v;
@@ -1325,11 +1295,7 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		struct ucred peercred;
 		if (len > sizeof(peercred))
 			len = sizeof(peercred);
-
-		spin_lock(&sk->sk_peer_lock);
 		cred_to_ucred(sk->sk_peer_pid, sk->sk_peer_cred, &peercred);
-		spin_unlock(&sk->sk_peer_lock);
-
 		if (copy_to_user(optval, &peercred, len))
 			return -EFAULT;
 		goto lenout;
@@ -1420,13 +1386,6 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		v.val = sk->sk_incoming_cpu;
 		break;
 
-
-	case SO_COOKIE:
-		lv = sizeof(u64);
-		if (len < lv)
-			return -EINVAL;
-		v.val64 = sock_gen_cookie(sk);
-		break;
 	default:
 		/* We implement the SO_SNDLOWAT etc to not be settable
 		 * (1003.1g 7).
@@ -1582,7 +1541,6 @@ static void sk_prot_free(struct proto *prot, struct sock *sk)
 	owner = prot->owner;
 	slab = prot->slab;
 
-	cgroup_sk_free(&sk->sk_cgrp_data);
 	security_sk_free(sk);
 	if (slab != NULL)
 		kmem_cache_free(slab, sk);
@@ -1590,6 +1548,17 @@ static void sk_prot_free(struct proto *prot, struct sock *sk)
 		kfree(sk);
 	module_put(owner);
 }
+
+#if IS_ENABLED(CONFIG_CGROUP_NET_PRIO)
+void sock_update_netprioidx(struct sock *sk)
+{
+	if (in_interrupt())
+		return;
+
+	sk->sk_cgrp_prioidx = task_netprioidx(current);
+}
+EXPORT_SYMBOL_GPL(sock_update_netprioidx);
+#endif
 
 /**
  *	sk_alloc - All socket objects are allocated here
@@ -1604,8 +1573,8 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 {
 	struct sock *sk;
 
-#if defined(CONFIG_KNOX_NCM)
 	/* START_OF_KNOX_NPA */
+#ifdef CONFIG_KNOX_NCM
 	struct pid *pid_struct = NULL;
 	struct task_struct *task = NULL;
 	int process_returnValue = -1;
@@ -1614,14 +1583,14 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 	struct task_struct *parent_task = NULL;
 	int parent_returnValue = -1;
 	char full_parent_process_name[PROCESS_NAME_LEN_NAP] = {0};
-	/* END_OF_KNOX_NPA */
 #endif
+	/* END_OF_KNOX_NPA */
 
 	sk = sk_prot_alloc(prot, priority | __GFP_ZERO, family);
 	if (sk) {
 		sk->sk_family = family;
-#if defined(CONFIG_KNOX_NCM)
 		/* START_OF_KNOX_NPA */
+#ifdef CONFIG_KNOX_NCM
 		/* assign values to members of sock structure when npa flag is present */
 		sk->knox_uid = current->cred->uid.val;
 		sk->knox_pid = current->tgid;
@@ -1677,22 +1646,16 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		sock_net_set(sk, net);
 		atomic_set(&sk->sk_wmem_alloc, 1);
 
-		cgroup_sk_alloc(&sk->sk_cgrp_data);
-		sock_update_classid(&sk->sk_cgrp_data);
-		sock_update_netprioidx(&sk->sk_cgrp_data);
-		sk_tx_queue_clear(sk);
+		sock_update_classid(sk);
+		sock_update_netprioidx(sk);
 	}
 
 	return sk;
 }
 EXPORT_SYMBOL(sk_alloc);
 
-/* Sockets having SOCK_RCU_FREE will call this function after one RCU
- * grace period. This is the case for UDP sockets and TCP listeners.
- */
-static void __sk_destruct(struct rcu_head *head)
+void sk_destruct(struct sock *sk)
 {
-	struct sock *sk = container_of(head, struct sock, sk_rcu);
 	struct sk_filter *filter;
 
 	if (sk->sk_destruct)
@@ -1704,8 +1667,6 @@ static void __sk_destruct(struct rcu_head *head)
 		sk_filter_uncharge(sk, filter);
 		RCU_INIT_POINTER(sk->sk_filter, NULL);
 	}
-	if (rcu_access_pointer(sk->sk_reuseport_cb))
-		reuseport_detach_sock(sk);
 
 	sock_disable_timestamp(sk, SK_FLAGS_TIMESTAMP);
 
@@ -1718,21 +1679,12 @@ static void __sk_destruct(struct rcu_head *head)
 		sk->sk_frag.page = NULL;
 	}
 
-	/* We do not need to acquire sk->sk_peer_lock, we are the last user. */
-	put_cred(sk->sk_peer_cred);
+	if (sk->sk_peer_cred)
+		put_cred(sk->sk_peer_cred);
 	put_pid(sk->sk_peer_pid);
-
 	if (likely(sk->sk_net_refcnt))
 		put_net(sock_net(sk));
 	sk_prot_free(sk->sk_prot_creator, sk);
-}
-
-void sk_destruct(struct sock *sk)
-{
-	if (sock_flag(sk, SOCK_RCU_FREE))
-		call_rcu(&sk->sk_rcu, __sk_destruct);
-	else
-		__sk_destruct(&sk->sk_rcu);
 }
 
 static void __sk_free(struct sock *sk)
@@ -1814,8 +1766,6 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 #ifdef CONFIG_MPTCP
 		sock_reset_flag(newsk, SOCK_MPTCP);
 #endif
-		cgroup_sk_clone(&newsk->sk_cgrp_data);
-
 		skb_queue_head_init(&newsk->sk_error_queue);
 
 		filter = rcu_dereference_protected(newsk->sk_filter, 1);
@@ -1841,16 +1791,12 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 			newsk = NULL;
 			goto out;
 		}
-		RCU_INIT_POINTER(newsk->sk_reuseport_cb, NULL);
 
 		newsk->sk_err	   = 0;
 		newsk->sk_err_soft = 0;
 		newsk->sk_priority = 0;
 		newsk->sk_incoming_cpu = raw_smp_processor_id();
 		atomic64_set(&newsk->sk_cookie, 0);
-
-		cgroup_sk_alloc(&newsk->sk_cgrp_data);
-
 		/*
 		 * Before updating sk_refcnt, we must commit prior changes to memory
 		 * (Documentation/RCU/rculist_nulls.txt for details)
@@ -1871,7 +1817,6 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
 		 */
 		sk_refcnt_debug_inc(newsk);
 		sk_set_socket(newsk, NULL);
-		sk_tx_queue_clear(newsk);
 		newsk->sk_wq = NULL;
 
 		sk_update_clone(sk, newsk);
@@ -2394,7 +2339,7 @@ int __sk_mem_schedule(struct sock *sk, int size, int kind)
 	}
 
 	if (sk_has_memory_pressure(sk)) {
-		u64 alloc;
+		int alloc;
 
 		if (!sk_under_memory_pressure(sk))
 			return 1;
@@ -2693,8 +2638,6 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 
 	sk->sk_peer_pid 	=	NULL;
 	sk->sk_peer_cred	=	NULL;
-	spin_lock_init(&sk->sk_peer_lock);
-
 	sk->sk_write_pending	=	0;
 	sk->sk_rcvlowat		=	1;
 	sk->sk_rcvtimeo		=	MAX_SCHEDULE_TIMEOUT;

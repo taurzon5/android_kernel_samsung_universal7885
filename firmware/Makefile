@@ -152,6 +152,7 @@ fw-shipped-$(CONFIG_TOUCHSCREEN_FTS) += tsp_stm/fts6ct108_view2.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_FTS1BA90A) += tsp_stm/fts1ba90a_gta3_00.fw tsp_stm/fts1ba90a_gta3.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_MMS449) += tsp_melfas/mms449_s5neo.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_MMS438) += tsp_melfas/mms438_j7duo.fw
+fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_MSS100_A30KOR) += tsp_melfas/mss100_a30.fw tsp_melfas/mss100_a30_old.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_MELFAS_MSS100) += tsp_melfas/mss100_m30_00.fw tsp_melfas/mss100_m30.fw tsp_melfas/mss100_m30_old.fw \
 													tsp_melfas/mss100_a30.fw tsp_melfas/mss100_a30_old.fw tsp_melfas/mss100_a30_jpn.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_MMS144) += tsp_melfas/DIABLO_CoreV54_V35_master.fw
@@ -167,10 +168,10 @@ fw-shipped-$(CONFIG_TOUCHSCREEN_IST40XX) += tsp_imagis/ist40xx_a7_2018.fw tsp_im
 											tsp_imagis/ist40xx_a50.fw tsp_imagis/ist40xx_a50_cmcs.bin
 fw-shipped-$(CONFIG_TOUCHSCREEN_IST4050) += tsp_imagis/ist40xx_a30s.bin tsp_imagis/ist40xx_a30s_cmcs.bin
 fw-shipped-$(CONFIG_TOUCHSCREEN_IST3038H) += tsp_imagis/ist3038h_a40.fw tsp_imagis/ist3038h_a40_cmcs.bin
-fw-shipped-$(CONFIG_TOUCHSCREEN_HIMAX_INCELL) += tsp_himax/hx83112a_m20lte.fw tsp_himax/hx83102d_a20e.fw
+fw-shipped-$(CONFIG_TOUCHSCREEN_HIMAX_INCELL) += tsp_himax/hx83112a_m20lte.fw tsp_himax/hx83102d_a20e.fw tsp_himax/hx83102d_a20e_al.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_HIMAX_CHIPSET) += tsp_himax/hx83102p_gta4s.fw
 
-TSPFIRMWARE_DIRECTORY = /home/khushtaur5/android/l20/kernel/samsung/exynos7885/firmware/tsp_zinitix
+TSPFIRMWARE_DIRECTORY = $(srctree)/firmware/tsp_zinitix
 ifeq ($(shell test -d $(TSPFIRMWARE_DIRECTORY) && echo yes),yes)
 fw-shipped-$(CONFIG_TOUCHSCREEN_ZINITIX_ZT75XX) += tsp_zinitix/zt7538_xcover4s.fw
 fw-shipped-$(CONFIG_TOUCHSCREEN_ZINITIX_ZT75XX_TCLM) += tsp_zinitix/zt7548_a6.fw tsp_zinitix/zt7548_feel2.fw tsp_zinitix/zt7548_a40.fw tsp_zinitix/zt7548_a20.fw tsp_zinitix/zt7548_a40s.fw tsp_zinitix/zt7548_m10s.fw
@@ -234,7 +235,7 @@ quiet_cmd_fwbin = MK_FW   $@
 		  echo "    .section .rodata"				>>$@;\
 		  echo "    .p2align $${ASM_ALIGN}"			>>$@;\
 		  echo "_fw_$${FWSTR}_bin:"				>>$@;\
-		  echo "    .incbin \"$(2)\""				>>$@;\
+		  echo "    .incbin \"$(srctree)/$(2)\""				>>$@;\
 		  echo "_fw_end:"					>>$@;\
 		  echo "   .section .rodata.str,\"aMS\",$${PROGBITS},1"	>>$@;\
 		  echo "    .p2align $${ASM_ALIGN}"			>>$@;\
@@ -303,8 +304,8 @@ endif
 
 # Remove .S files and binaries created from ihex
 # (during 'make clean' .config isn't included so they're all in $(fw-shipped-))
-targets := $(fw-shipped-) $(patsubst $(obj)/%,%, \
-				$(shell find $(obj) -name \*.gen.S 2>/dev/null))
+#targets := $(fw-shipped-) $(patsubst $(obj)/%,%, \
+#				$(shell find $(obj) -name \*.gen.S 2>/dev/null))
 
 # Without this, built-in.o won't be created when it's empty, and the
 # final vmlinux link will fail.

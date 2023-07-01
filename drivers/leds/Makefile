@@ -1,3 +1,4 @@
+subdir-ccflags-y := $(call cc-disable-warning, enum-conversion)
 
 # LED Core
 obj-$(CONFIG_NEW_LEDS)			+= led-core.o

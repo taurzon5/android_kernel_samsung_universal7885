@@ -1858,7 +1858,6 @@ static int decon_set_win_config(struct decon_device *decon,
 		goto err_prepare;
 
 	if (win_data->fence >= 0) {
-		decon_install_fence(fence, win_data->fence);
 #if defined(CONFIG_DPU_20)
 		decon_create_release_fences(decon, win_data, fence);
 #endif
@@ -1870,6 +1869,18 @@ static int decon_set_win_config(struct decon_device *decon,
 	list_add_tail(&regs->list, &decon->up.list);
 	mutex_unlock(&decon->up.lock);
 	queue_kthread_work(&decon->up.worker, &decon->up.work);
+
+	/**
+	 * The code is moved here because the DPU driver may get a wrong fd
+	 * through the released file pointer,
+	 * if the user(HWC) closes the fd and releases the file pointer.
+	 *
+	 * Since the user land can use fd from this point/time,
+	 * it can be guaranteed to use an unreleased file pointer
+	 * when creating a rel_fence in decon_create_release_fences(...)
+	 */
+	if (win_data->fence >= 0)
+                decon_install_fence(fence, win_data->fence);
 
 	mutex_unlock(&decon->lock);
 

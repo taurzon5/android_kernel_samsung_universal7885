@@ -78,8 +78,7 @@ void sec_bat_calc_time_to_full(struct sec_battery_info *battery)
 			charge = battery->ttf_d->ttf_hv_12v_charge_current;
 		} else if (is_hv_wire_type(battery->cable_type) ||
 			/* if max_charge_power could support over than max_charging_current,calculate based on ttf_hv_charge_current */
-			(battery->max_charge_power >= (battery->ttf_d->max_charging_current * 5)) ||
-			(battery->cable_type == SEC_BATTERY_CABLE_PREPARE_TA)) {
+			battery->max_charge_power >= (battery->ttf_d->max_charging_current * 5)) {
 			charge = battery->ttf_d->ttf_hv_charge_current;
 		} else if (is_hv_wireless_type(battery->cable_type) ||
 				battery->cable_type == SEC_BATTERY_CABLE_PREPARE_WIRELESS_HV) {
@@ -89,13 +88,6 @@ void sec_bat_calc_time_to_full(struct sec_battery_info *battery)
 				charge = battery->ttf_d->ttf_hv_wireless_charge_current;
 		} else if (is_nv_wireless_type(battery->cable_type)) {
 			charge = battery->ttf_d->ttf_wireless_charge_current;
-		} else if (battery->ttf_d->ttf_pd_charge_current != 0 && is_pd_wire_type(battery->cable_type)) {
-			charge = battery->ttf_d->ttf_pd_charge_current;
-#if defined(CONFIG_CCIC_NOTIFIER)
-		} else if (battery->ttf_d->ttf_rp3_charge_current != 0 && battery->cable_type == SEC_BATTERY_CABLE_TA &&
-				battery->pdic_info.sink_status.rp_currentlvl == RP_CURRENT_LEVEL3) {
-			charge = battery->ttf_d->ttf_rp3_charge_current;
-#endif
 		} else {
 			charge = (battery->max_charge_power / 5) >
 			battery->pdata->charging_current[battery->cable_type].fast_charging_current ?
@@ -143,22 +135,6 @@ int sec_ttf_parse_dt(struct sec_battery_info *battery)
 			__func__, pdata->ttf_hv_charge_current);
 	}
 
-	ret = of_property_read_u32(np, "battery,ttf_pd_charge_current",
-					&pdata->ttf_pd_charge_current);
-	if (ret) {
-		pdata->ttf_pd_charge_current = 0;
-		pr_info("%s: ttf_pd_charge_current is Empty, Default value %d\n",
-			__func__, pdata->ttf_pd_charge_current);
-	}
-
-	ret = of_property_read_u32(np, "battery,ttf_rp3_charge_current",
-					&pdata->ttf_rp3_charge_current);
-	if (ret) {
-		pdata->ttf_rp3_charge_current = 0;
-		pr_info("%s: ttf_rp3_charge_current is Empty, Default value %d\n",
-			__func__, pdata->ttf_rp3_charge_current);
-	}
-
 	ret = of_property_read_u32(np, "battery,ttf_hv_wireless_charge_current",
 					&pdata->ttf_hv_wireless_charge_current);
 	if (ret) {
@@ -186,7 +162,7 @@ int sec_ttf_parse_dt(struct sec_battery_info *battery)
 			&pdata->max_charging_current);
 	if (ret) {
 		pr_err("%s: max_charging_current is Empty\n", __func__);
-		pdata->max_charging_current = 3000;
+		pdata->max_charging_current = 1000;
 	}
 	/* temporary dt setting */
 	ret = of_property_read_u32(np, "battery,ttf_predict_wc20_charge_current",

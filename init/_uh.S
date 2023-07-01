@@ -1,7 +1,7 @@
 #include <linux/uh.h>
 
+#define uh_ELF_PATH "init/uh.elf"
 
-#define uh_ELF_PATH "/home/khushtaur5/android/l20/kernel/samsung/exynos7885/init/uh.elf"
 #define SMC_64BIT_RET_MAGIC 0xC2000401
 
 .section .init.text, "ax"

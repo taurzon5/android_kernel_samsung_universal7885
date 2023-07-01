@@ -201,6 +201,7 @@ ssize_t max77865_chg_store_attrs(struct device *dev,
 
 #define REDUCE_CURRENT_STEP						100
 #define MINIMUM_INPUT_CURRENT					300
+#define SLOW_CHARGING_CURRENT_STANDARD          400
 
 #define WC_CURRENT_STEP		100
 #define WC_CURRENT_START	480
@@ -248,6 +249,7 @@ struct max77865_charger_data {
 	unsigned int	charging_current;
 	unsigned int	vbus_state;
 	int		aicl_on;
+	bool	slow_charging;
 	int		status;
 	int		charge_mode;
 	int uvlo_attach_flag;
@@ -292,6 +294,7 @@ struct max77865_charger_data {
 	struct wake_lock sysovlo_wake_lock;
 
 	u8 vsys_ocp;
+	int	slow_charging_current;
 
 	bool is_mdock;
 	bool otg_on;

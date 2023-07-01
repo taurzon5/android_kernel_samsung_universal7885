@@ -8,3 +8,6 @@ EXTRA_CFLAGS += -Idrivers/media/platform/exynos/fimc-legacy/include
 EXTRA_CFLAGS += -Idrivers/media/platform/exynos/fimc-legacy/hardware
 EXTRA_CFLAGS += -Idrivers/media/platform/exynos/fimc-legacy/hardware/api
 EXTRA_CFLAGS += -Idrivers/media/platform/exynos/fimc-legacy/vendor
+
+
+subdir-ccflags-y := $(call cc-disable-warning, enum-conversion)

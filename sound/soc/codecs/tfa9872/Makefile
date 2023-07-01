@@ -12,6 +12,9 @@ TFA98XX_FLAGS           := -DUSE_TFA9872
 # cc flags
 #ccflags-y               := -DDEBUG
 #ccflags-y               += -I$(TFA_SRC_DIR)/inc
+
+subdir-ccflags-y := $(call cc-disable-warning, enum-conversion)
+
 ccflags-y               := -I$(TFA_SRC_DIR)/inc
 ccflags-y               += -Werror
 ifdef TFADSP_32BITS

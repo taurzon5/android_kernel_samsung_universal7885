@@ -211,12 +211,7 @@ static void regmode_vote(struct s2mu106_charger_data *charger, int voter, int va
 		/* auto async mode */
 		s2mu106_update_reg(charger->i2c, 0x3A, 0x01, 0x03);
 	} else {
-		/* 
-		 * Regmode (CHG, BUCK, BUCK OFF)
-		 * Do not set Auto Async mode before BUCK OFF mode
-		 */
-		if ((set_val & REG_MODE_CHG) || (set_val & REG_MODE_BUCK))
-			s2mu106_update_reg(charger->i2c, 0x3A, 0x01, 0x03); // SET_Auto Async
+		s2mu106_update_reg(charger->i2c, 0x3A, 0x01, 0x03); // SET_Auto Async
 		s2mu106_update_reg(charger->i2c,
 				S2MU106_CHG_CTRL0, set_val, REG_MODE_MASK);
 		s2mu106_update_reg(charger->i2c, 0x39, 0x55, 0xFF); // prevent OTG OCP default
@@ -647,6 +642,33 @@ static int s2mu106_get_charging_status(
 	return status;
 }
 
+static bool s2mu106_check_slow_charging(struct s2mu106_charger_data *charger,
+	int input_current)
+{	
+	bool slow_charge_prev = charger->slow_charging;
+
+	pr_info("%s: charger->cable_type %d, input_current %d\n",
+		__func__, charger->cable_type, input_current);
+
+	/* under 400mA considered as slow charging concept for VZW */
+	if (input_current <= charger->pdata->slow_charging_current &&
+		charger->cable_type != SEC_BATTERY_CABLE_NONE) {
+		union power_supply_propval value;
+
+		charger->slow_charging = true;
+		pr_info("%s: slow charging on : input current(%dmA), cable type(%d)\n",
+			__func__, input_current, charger->cable_type);
+		if (slow_charge_prev != charger->slow_charging) {
+			value.intval = POWER_SUPPLY_CHARGE_TYPE_SLOW;
+			psy_do_property("battery", set,
+				POWER_SUPPLY_PROP_CHARGE_TYPE, value);
+		}
+	} else
+		charger->slow_charging = false;
+
+	return charger->slow_charging;
+}
+
 static int s2mu106_get_charge_type(struct s2mu106_charger_data *charger)
 {
 	int status = POWER_SUPPLY_CHARGE_TYPE_UNKNOWN;
@@ -658,10 +680,18 @@ static int s2mu106_get_charge_type(struct s2mu106_charger_data *charger)
 
 	switch ((ret & BAT_STATUS_MASK) >> BAT_STATUS_SHIFT) {
 	case 0x6:
-	case 0x2: /* pre-charge mode */
-	case 0x3: /* pre-charge mode */
 		status = POWER_SUPPLY_CHARGE_TYPE_FAST;
 		break;
+	case 0x2:
+	case 0x3:
+		/* pre-charge mode */
+		status = POWER_SUPPLY_CHARGE_TYPE_TRICKLE;
+		break;
+	}
+
+	if (s2mu106_check_slow_charging(charger, charger->input_current)) {
+		status = POWER_SUPPLY_CHARGE_TYPE_SLOW;
+		pr_info("%s: slow-charging mode\n", __func__);
 	}
 
 	return status;
@@ -834,7 +864,7 @@ static int s2mu106_chg_set_property(struct power_supply *psy,
 		const union power_supply_propval *val)
 {
 	struct s2mu106_charger_data *charger = power_supply_get_drvdata(psy);
-	enum power_supply_ext_property ext_psp = (enum power_supply_ext_property)psp;
+	enum power_supply_ext_property ext_psp = psp;
 	int buck_state = ENABLE;
 	union power_supply_propval value;
 	int ret;
@@ -847,6 +877,7 @@ static int s2mu106_chg_set_property(struct power_supply *psy,
 		/* val->intval : type */
 	case POWER_SUPPLY_PROP_ONLINE:
 		charger->cable_type = val->intval;
+		charger->slow_charging = false;
 		charger->ivr_on = false;
 		if (charger->cable_type != SEC_BATTERY_CABLE_OTG) {
 			if (charger->cable_type == SEC_BATTERY_CABLE_NONE ||
@@ -985,7 +1016,8 @@ static int s2mu106_chg_set_property(struct power_supply *psy,
 #endif
 			s2mu106_update_reg(charger->i2c, 0xE5, 0x08, 0x0F);
 			value.intval = SEC_BAT_FGSRC_SWITCHING_OFF;
-			psy_do_property("s2mu106-fuelgauge", set, (enum power_supply_property) POWER_SUPPLY_EXT_PROP_INBAT_VOLTAGE_FGSRC_SWITCHING, value);
+			psy_do_property("s2mu106-fuelgauge", set,
+				POWER_SUPPLY_EXT_PROP_INBAT_VOLTAGE_FGSRC_SWITCHING, value);
 
 			charger->input_current = s2mu106_get_input_current_limit(charger);
 			s2mu106_update_reg(charger->i2c, 0x19, 0x4E, 0x7F);
@@ -1005,7 +1037,8 @@ static int s2mu106_chg_set_property(struct power_supply *psy,
 			s2mu106_set_regulation_vsys(charger, 4400);
 
 			value.intval = SEC_BAT_FGSRC_SWITCHING_ON;
-			psy_do_property("s2mu106-fuelgauge", set, (enum power_supply_property)  POWER_SUPPLY_EXT_PROP_INBAT_VOLTAGE_FGSRC_SWITCHING, value);
+			psy_do_property("s2mu106-fuelgauge", set,
+				POWER_SUPPLY_EXT_PROP_INBAT_VOLTAGE_FGSRC_SWITCHING, value);
 		}
 		break;
 	case POWER_SUPPLY_PROP_INPUT_VOLTAGE_REGULATION:
@@ -1084,10 +1117,12 @@ static int s2mu106_chg_set_property(struct power_supply *psy,
 					POWER_SUPPLY_PROP_PM_FACTORY, value);
 
 				value.intval = SEC_BAT_FGSRC_SWITCHING_OFF;
-				psy_do_property("s2mu106-fuelgauge", set, (enum power_supply_property) 	POWER_SUPPLY_EXT_PROP_INBAT_VOLTAGE_FGSRC_SWITCHING, value);
+				psy_do_property("s2mu106-fuelgauge", set,
+					POWER_SUPPLY_EXT_PROP_INBAT_VOLTAGE_FGSRC_SWITCHING, value);
 
 				value.intval = true;
-				psy_do_property("muic-manager", set, (enum power_supply_property) 	POWER_SUPPLY_EXT_PROP_CURRENT_MEASURE, value);
+				psy_do_property("muic-manager", set,
+					POWER_SUPPLY_EXT_PROP_CURRENT_MEASURE, value);
 
 				/* VBUS UVLO disable */
 				s2mu106_update_reg(charger->i2c, 0x39, 0xC0, 0xC0);
@@ -1103,10 +1138,12 @@ static int s2mu106_chg_set_property(struct power_supply *psy,
 				s2mu106_update_reg(charger->i2c, 0x38, 0x00, 0x03);
 				s2mu106_update_reg(charger->i2c, 0xE5, 0x08, 0x0F);
 
-				psy_do_property("s2mu106-usbpd", set, (enum power_supply_property) 	POWER_SUPPLY_EXT_PROP_CURRENT_MEASURE, value);
+				psy_do_property("s2mu106-usbpd", set,
+					POWER_SUPPLY_EXT_PROP_CURRENT_MEASURE, value);
 			} else {
 				value.intval = SEC_BAT_FGSRC_SWITCHING_ON;
-				psy_do_property("s2mu106-fuelgauge", set, (enum power_supply_property)  POWER_SUPPLY_EXT_PROP_INBAT_VOLTAGE_FGSRC_SWITCHING, value);
+				psy_do_property("s2mu106-fuelgauge", set,
+					POWER_SUPPLY_EXT_PROP_INBAT_VOLTAGE_FGSRC_SWITCHING, value);
 
 				pr_info("%s: Bypass exit for current measure\n", __func__);
 				s2mu106_update_reg(charger->i2c, S2MU106_CHG_CTRL0, 0x00, 0x0F);
@@ -1401,8 +1438,12 @@ static void s2mu106_ivr_irq_work(struct work_struct *work)
 	if (charger->ivr_on) {
 		union power_supply_propval value;
 
+		if (is_not_wireless_type(charger->cable_type))
+			s2mu106_check_slow_charging(charger, charger->input_current);
+
 		if ((charger->irq_ivr_enabled == 1) &&
-			(charger->input_current <= MINIMUM_INPUT_CURRENT)) {
+			(charger->input_current <= MINIMUM_INPUT_CURRENT) &&
+			(charger->slow_charging)) {
 			/* Disable IVR IRQ, can't reduce current any more */
 			u8 reg_data;
 
@@ -1416,7 +1457,8 @@ static void s2mu106_ivr_irq_work(struct work_struct *work)
 		}
 
 		value.intval = s2mu106_get_input_current_limit(charger);
-		psy_do_property("battery", set, (enum power_supply_property) POWER_SUPPLY_EXT_PROP_AICL_CURRENT, value);
+		psy_do_property("battery", set,
+				POWER_SUPPLY_EXT_PROP_AICL_CURRENT, value);
 	}
 
 	if (charger->irq_ivr_enabled == 1) {
@@ -1457,6 +1499,15 @@ static int s2mu106_charger_parse_dt(struct device *dev,
 				&pdata->chg_switching_freq);
 		if (ret < 0)
 			pr_info("%s: Charger switching FRQ is Empty\n", __func__);
+
+		ret = of_property_read_u32(np, "charger,slow_charging_current",
+					   &pdata->slow_charging_current);
+		if (ret) {
+			pr_info("%s : slow_charging_current is Empty\n", __func__);
+			pdata->slow_charging_current = SLOW_CHARGING_CURRENT_STANDARD;
+		} else {
+			pr_info("%s : slow_charging_current is %d \n", __func__, pdata->slow_charging_current);
+		}
 	}
 
 	np = of_find_node_by_name(NULL, "battery");
@@ -1556,6 +1607,7 @@ static int s2mu106_charger_probe(struct platform_device *pdev)
 	mutex_init(&charger->regmode_mutex);
 	charger->otg_on = false;
 	charger->ivr_on = false;
+	charger->slow_charging = false;
 
 	charger->dev = &pdev->dev;
 	charger->i2c = s2mu106->i2c;

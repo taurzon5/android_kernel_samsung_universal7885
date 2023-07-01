@@ -976,7 +976,7 @@ el0_svc_naked:					// compat entry point
 	ldr	x16, [x16]
 	cmp	x16, xzr
 	b.eq	2f
-	uxtw	x0, wscno
+	mov	x0, xscno
 	mov	x1, sp
 	blr	x16
 
@@ -1026,7 +1026,7 @@ __sys_trace:
 	ldr	x16, [x16]
 	cmp	x16, xzr
 	b.eq	3f
-	uxtw	x0, wscno
+	mov	x0, xscno
 	mov	x1, sp
 	blr	x16
 
