@@ -18,9 +18,6 @@ scsc_logring-y += scsc_logring_main.o scsc_logring_ring.o scsc_logring_debugfs.o
 
 obj-$(CONFIG_SCSC_LOG_COLLECTION) += scsc_log_collection.o
 scsc_log_collection-y += scsc_log_collector.o scsc_log_collector_proc.o scsc_log_collector_mmap.o
-
-subdir-ccflags-y := $(call cc-disable-warning, enum-conversion)
-
 ##
 ## The following cumbersome ifeq/else is the only way to make
 ## this CONFIG_SCSC_PRINTK propagate correctly in any scenario (y,m,n)

@@ -9,8 +9,6 @@ KASAN_SANITIZE_slub.o := n
 # Since __builtin_frame_address does work as used, disable the warning.
 CFLAGS_usercopy.o += $(call cc-disable-warning, frame-address)
 
-subdir-ccflags-y := $(call cc-disable-warning, enum-conversion)
-
 # These files are disabled because they produce non-interesting and/or
 # flaky coverage that is not a function of syscall inputs. E.g. slab is out of
 # free pages, or a task is migrated between nodes.

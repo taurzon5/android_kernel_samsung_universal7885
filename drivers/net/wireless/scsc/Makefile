@@ -15,9 +15,6 @@ obj-$(CONFIG_SCSC_WLAN) += scsc_wlan.o
 scsc_wlan-y += hip4.o
 scsc_wlan-y += mbulk.o
 
-
-subdir-ccflags-y := $(call cc-disable-warning, enum-conversion)
-
 # ----------------------------------------------------------------------------
 # HIP4 sampler
 # ----------------------------------------------------------------------------

@@ -572,7 +572,7 @@ static int sensor_module_5e9_power_setpin_with_otp(struct device *dev,
 	return 0;
 }
 
-/*static int __init* sensor_module_5e9_probe(struct platform_device *pdev)
+static int sensor_module_5e9_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	unsigned int use_cal_memory = 0;
@@ -590,7 +590,7 @@ static int sensor_module_5e9_power_setpin_with_otp(struct device *dev,
 	core = (struct fimc_is_core *)dev_get_drvdata(fimc_is_dev);
 	if (!core) {
 		probe_info("core device is not yet probed");
-		return ERR_PTR(-EPROBE_DEFER);
+		return -EPROBE_DEFER;
 	}
 
 	dev = &pdev->dev;
@@ -642,7 +642,7 @@ static int sensor_module_5e9_power_setpin_with_otp(struct device *dev,
 	module->cfgs = ARRAY_SIZE(config_module_5e9);
 	module->cfg = config_module_5e9;
 	module->ops = NULL;
-	// Sensor peri
+	/* Sensor peri */
 	module->private_data = kzalloc(sizeof(struct fimc_is_device_sensor_peri), GFP_KERNEL);
 	if (!module->private_data) {
 		probe_err("fimc_is_device_sensor_peri is NULL");
@@ -751,4 +751,3 @@ static struct platform_driver sensor_module_5e9_driver = {
 };
 
 module_platform_driver(sensor_module_5e9_driver);
-*/

@@ -1,5 +1,3 @@
-subdir-ccflags-y := $(call cc-disable-warning, enum-conversion)
-
 obj-$(CONFIG_USE_DIRECT_IS_CONTROL) += fimc-is-hw-control.o \
 		fimc-is-hw-3aa.o \
 		fimc-is-hw-isp.o \

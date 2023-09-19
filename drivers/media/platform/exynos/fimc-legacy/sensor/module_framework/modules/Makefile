@@ -49,5 +49,3 @@ EXTRA_CFLAGS += -Idrivers/media/platform/exynos/fimc-legacy/sensor
 ifeq ($(CONFIG_COMPANION_DIRECT_USE),y)
 EXTRA_CFLAGS += -Idrivers/media/platform/exynos/fimc-legacy/vendor/mcd/preprocessor
 endif
-
-subdir-ccflags-y := $(call unused-variable)

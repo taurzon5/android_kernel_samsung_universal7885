@@ -50,8 +50,6 @@
 #include <linux/mount.h>
 #include <linux/compaction.h>
 #include <linux/pagemap.h>
-#include <linux/swap.h>
-#include <linux/jiffies.h>
 
 #define ZSPAGE_MAGIC	0x58
 
@@ -491,7 +489,7 @@ static bool is_zspage_isolated(struct zspage *zspage)
 	return zspage->isolated;
 }
 
-static __maybe_unused int is_first_page(struct page *page)
+static int is_first_page(struct page *page)
 {
 	return PagePrivate(page);
 }

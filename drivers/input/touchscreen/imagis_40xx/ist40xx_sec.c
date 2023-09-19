@@ -4476,7 +4476,7 @@ static ssize_t get_lp_dump(struct device *dev,
 			if (data0 || data1 || data2 || data3) {
 				snprintf(buff, sizeof(buff), "%d: %04x%04x%04x%04x\n",
 						string_addr, data0, data1, data2, data3);
-				strncat(buf, buff, sizeof(buff) - strlen(buff) - 1);
+				strncat(buf, buff, sizeof(buff));
 			}
 		} else {
 			if (string_addr % IST40XX_ADDR_LEN)
@@ -4508,7 +4508,7 @@ static ssize_t get_lp_dump(struct device *dev,
 			if (data0 || data1 || data2 || data3 || data4) {
 				snprintf(buff, sizeof(buff), "%d: %04x%04x%04x%04x%04x\n",
 						string_addr, data0, data1, data2, data3, data4);
-				strncat(buf, buff, sizeof(buff) - strlen(buff) - 1);
+				strncat(buf, buff, sizeof(buff));
 			}
 		}
 	}

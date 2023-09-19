@@ -1,2 +1,2 @@
-# android_kernel_samsung_universal7885
- 
+# kernel_samsung_a7y18lte
+ stock kernel samsung a7y18lte
